@@ -1,184 +1,574 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <title>Integrated Lobby Structure Pro-Exporter</title>
-    <meta charset="utf-8">
-    <style>
-        body { margin: 0; background-color: #1a1a1a; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-        #overlay { position: absolute; top: 20px; left: 20px; z-index: 100; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; border: 1px solid #444; pointer-events: none; }
-        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 100; }
-        button { padding: 15px 30px; font-size: 18px; font-weight: bold; cursor: pointer; background: #00c3ff; color: white; border: none; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,195,255,0.4); transition: 0.2s; }
-        button:hover { background: #0099cc; transform: scale(1.05); }
-        h2 { margin: 0 0 10px 0; font-size: 18px; color: #00c3ff; }
-    </style>
+  <meta charset="utf-8" />
+  <title>Crystal Lobby — three.js inspiration scene + GLTF Export</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html,body { height:100%; margin:0; overflow:hidden; background: #a7ddff; font-family: Inter, Roboto, sans-serif; }
+    #canvas-container { width:100%; height:100%; display:block; position:relative; }
+    #downloadBtn {
+      position: absolute;
+      right: 18px;
+      top: 18px;
+      background:linear-gradient(180deg,#fff,#e6f2ff);
+      border-radius:10px;
+      border:1px solid rgba(0,0,0,0.08);
+      padding:10px 12px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      cursor:pointer;
+      z-index:20;
+      font-weight:700;
+    }
+    #info {
+      position:absolute;
+      left:18px;
+      top:18px;
+      padding:10px 12px;
+      background: rgba(255,255,255,0.7);
+      border-radius:8px;
+      backdrop-filter: blur(6px);
+      font-size:13px;
+      z-index:20;
+    }
+    #credits {
+      position:absolute;
+      left:18px;
+      bottom:18px;
+      background: rgba(255,255,255,0.6);
+      padding:8px 10px;
+      border-radius:8px;
+      font-size:12px;
+      z-index:20;
+    }
+    a { color: #0366d6; text-decoration:none; }
+  </style>
 </head>
 <body>
-    <div id="overlay">
-        <h2>Lobby Structure Pro-Exporter v2</h2>
-        <p>• Octagonal Viewing Ring (Deck/Railings)<br>• Integrated Cliff and Floor Geometry<br>• 4 Connected Activity Platforms</p>
-    </div>
-    <div id="controls">
-        <button id="export-btn">Download .GLB for Roblox Studio</button>
-    </div>
+  <div id="canvas-container"></div>
+  <button id="downloadBtn">Download GLB (GLTFExporter)</button>
+  <div id="info">Orbit to inspect — inspiration lobby (automatic lights & emissive crystals)</div>
+  <div id="credits">three.js + GLTFExporter — scene generated procedurally</div>
 
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
+<script type="module">
+  // imports
+  import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
+  import { OrbitControls } from 'https://unpkg.com/three@0.158.0/examples/jsm/controls/OrbitControls.js';
+  import { GLTFExporter } from 'https://unpkg.com/three@0.158.0/examples/jsm/exporters/GLTFExporter.js';
+  import { BufferGeometryUtils } from 'https://unpkg.com/three@0.158.0/examples/jsm/utils/BufferGeometryUtils.js';
+
+  // basic scene setup
+  const container = document.getElementById('canvas-container');
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0xbfe9ff, 0.0012);
+
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  container.appendChild(renderer.domElement);
+
+  const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 2000);
+  camera.position.set(0, 40, 95);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 8, 0);
+  controls.enableDamping = true;
+
+  // lights
+  const ambient = new THREE.HemisphereLight(0xeef7ff, 0x808080, 0.9);
+  scene.add(ambient);
+
+  const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+  dir.position.set(-30, 50, 30);
+  dir.castShadow = true;
+  scene.add(dir);
+
+  // ground plane huge base (sky island)
+  function createIslandBase() {
+    const base = new THREE.Group();
+    // a circular platform
+    const ringGeo = new THREE.CylinderGeometry(48, 48, 6, 64, 1, false);
+    const ringMat = new THREE.MeshStandardMaterial({ color:0xd9e8d6, metalness:0.05, roughness:0.8 });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.y = 3;
+    ring.receiveShadow = true;
+    base.add(ring);
+
+    // inner hole - central pit edge
+    const edgeGeo = new THREE.CylinderGeometry(30, 30, 6, 8, 1, false);
+    const edgeMat = new THREE.MeshStandardMaterial({ color:0xcfcfcf, metalness:0.05, roughness:0.9 });
+    const edge = new THREE.Mesh(edgeGeo, edgeMat);
+    edge.position.y = 3.1;
+    base.add(edge);
+
+    // drop sides - underside cliffs
+    const undersideGeo = new THREE.ConeGeometry(55, 40, 12);
+    undersideGeo.translate(0, -20, 0);
+    const undersideMat = new THREE.MeshStandardMaterial({ color: 0x6a7a5f, flatShading:false, roughness:1 });
+    const underside = new THREE.Mesh(undersideGeo, undersideMat);
+    underside.position.y = -15;
+    base.add(underside);
+
+    // detail stones on ring
+    for (let i=0;i<14;i++){
+      const stone = new THREE.Mesh(new THREE.BoxGeometry(3,0.6,1.8), new THREE.MeshStandardMaterial({color:0xb7b7b7, roughness:1}));
+      const ang = (i/14)*Math.PI*2;
+      const r = 38;
+      stone.position.set(Math.cos(ang)*r, 4.25, Math.sin(ang)*r);
+      stone.rotation.y = -ang;
+      stone.scale.set(1+Math.random()*0.6,1,1+Math.random()*0.4);
+      base.add(stone);
+    }
+
+    return base;
+  }
+
+  const island = createIslandBase();
+  scene.add(island);
+
+  // central pit with crystals (Main Obby)
+  function createCentralPit() {
+    const pit = new THREE.Group();
+
+    // pit walls
+    const pitWallMat = new THREE.MeshStandardMaterial({ color:0x9ba7b2, roughness:1 });
+    const pitWallGeo = new THREE.CylinderGeometry(30,30,40, 8,1,true);
+    const pitWall = new THREE.Mesh(pitWallGeo, pitWallMat);
+    pitWall.position.y = -17;
+    pit.add(pitWall);
+
+    // crystals cluster - many boxes, octahedrons, and rounded crystals
+    const crystals = new THREE.Group();
+    const crystalMat = new THREE.MeshStandardMaterial({ color:0xcfe9ff, metalness:0.2, roughness:0.2, emissive:0x88f0ff, emissiveIntensity:0.18, transparent:true, opacity:0.95 });
+    const prismMat = new THREE.MeshStandardMaterial({ color:0xffe6ff, emissive:0xffd7ff, emissiveIntensity:0.08, metalness:0.1, roughness:0.2 });
+    for (let i=0;i<28;i++){
+      const sz = 1.6 + Math.random()*6.0;
+      const geoType = Math.random()>0.5 ? new THREE.BoxGeometry(sz, sz*1.8, sz) : new THREE.OctahedronGeometry(sz*0.9,0);
+      const mesh = new THREE.Mesh(geoType, Math.random()>0.5 ? crystalMat : prismMat);
+      const r = 6 + Math.random()*12;
+      const angle = Math.random()*Math.PI*2;
+      mesh.position.set(Math.cos(angle)*r + (Math.random()-0.5)*4, -12 + Math.random()*12, Math.sin(angle)*r + (Math.random()-0.5)*4);
+      mesh.rotation.set(Math.random()*0.6, Math.random()*Math.PI, Math.random()*0.6);
+      mesh.scale.y *= 1.0 + Math.random()*1.5;
+      crystals.add(mesh);
+
+      // small point light for major crystals
+      if (Math.random()>0.85) {
+        const light = new THREE.PointLight(0x99f0ff, 0.6 + Math.random()*0.8, 30, 2);
+        light.position.copy(mesh.position).add(new THREE.Vector3(0, mesh.scale.y*2, 0));
+        pit.add(light);
+      }
+    }
+
+    // a floating center pedestal
+    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(6,6,1.5,32), new THREE.MeshStandardMaterial({ color:0xa9d7ff, emissive:0xccaaff, roughness:0.4, metalness:0.05 }));
+    pedestal.position.y = -6;
+    crystals.add(pedestal);
+
+    pit.add(crystals);
+
+    // decorative platforms stepping around the pit (like obby tiles)
+    const tiles = new THREE.Group();
+    const tileMat = new THREE.MeshStandardMaterial({ color:0xeceef8, roughness:0.6 });
+    for (let i=0;i<12;i++){
+      const tile = new THREE.Mesh(new THREE.BoxGeometry(6,0.8,6), tileMat);
+      const ang = (i/12)*Math.PI*2;
+      tile.position.set(Math.cos(ang)*20, -8 + (i%2===0?0.6:0), Math.sin(ang)*20);
+      tile.rotation.y = Math.random()*0.2;
+      tiles.add(tile);
+    }
+    pit.add(tiles);
+
+    pit.position.y = 0;
+    return pit;
+  }
+
+  const pit = createCentralPit();
+  scene.add(pit);
+
+  // outer walkway details — benches, lamps, small garden patches
+  function addWalkwayDetails() {
+    const group = new THREE.Group();
+    const benchMat = new THREE.MeshStandardMaterial({ color:0x754c24, roughness:0.7, metalness:0.03 });
+    for (let side=0; side<8; side++){
+      const bench = new THREE.Mesh(new THREE.BoxGeometry(5,0.6,1.3), benchMat);
+      const ang = (side/8)*Math.PI*2;
+      bench.position.set(Math.cos(ang)*36, 4.2, Math.sin(ang)*36);
+      bench.rotation.y = -ang + Math.PI/2;
+      group.add(bench);
+
+      // small planter near bench
+      const plan = new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,0.8,10), new THREE.MeshStandardMaterial({ color:0x9fbf88 }));
+      plan.position.set(Math.cos(ang)*31 + (Math.random()-0.5)*3, 4.6, Math.sin(ang)*31 + (Math.random()-0.5)*3);
+      group.add(plan);
+
+      // lamp posts
+      if (side % 2 === 0) {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,4,8), new THREE.MeshStandardMaterial({ color:0x222222 }));
+        post.position.set(Math.cos(ang)*28, 6.5, Math.sin(ang)*28);
+        group.add(post);
+        const glow = new THREE.PointLight(0xaee7ff, 0.7, 14);
+        glow.position.set(Math.cos(ang)*28, 8, Math.sin(ang)*28);
+        group.add(glow);
+      }
+    }
+    scene.add(group);
+  }
+  addWalkwayDetails();
+
+  // Practice obby - floating small platforms above center
+  function createPracticeObby() {
+    const group = new THREE.Group();
+    const baseY = 40;
+    const tileMat = new THREE.MeshStandardMaterial({ color: 0xdfeaff, roughness:0.5, metalness:0.03 });
+    const floatMat = new THREE.MeshStandardMaterial({ color: 0xfff6d9, roughness:0.6 });
+    const positions = [
+      [-14, baseY, -8],
+      [-8, baseY+2, -2],
+      [-2, baseY+1, 6],
+      [6, baseY+3, 10],
+      [14, baseY+1, 6],
+      [20, baseY, -2],
+    ];
+    positions.forEach((p,i)=>{
+      const plat = new THREE.Mesh(new THREE.BoxGeometry(6,0.8,6), tileMat);
+      plat.position.set(p[0], p[1], p[2]);
+      plat.rotation.y = Math.sin(i)*0.2;
+      group.add(plat);
+
+      // tiny pedestal with crystal on some
+      if (i%2===0){
+        const cry = new THREE.Mesh(new THREE.OctahedronGeometry(1.2), new THREE.MeshStandardMaterial({ color:0xd0f0ff, emissive:0xa0f0ff, emissiveIntensity:0.6 }));
+        cry.position.set(p[0], p[1]+1.4, p[2]);
+        group.add(cry);
+        const light = new THREE.PointLight(0xaaffff, 0.35, 10);
+        light.position.copy(cry.position);
+        group.add(light);
+      }
+    });
+
+    // small hovering connectors (transparent panels)
+    for (let i=0;i<positions.length-1;i++){
+      const a = new THREE.Vector3(...positions[i]);
+      const b = new THREE.Vector3(...positions[i+1]);
+      const mid = a.clone().lerp(b, 0.5);
+      const width = a.distanceTo(b);
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(width,0.12,1.6), new THREE.MeshStandardMaterial({ color:0xe9f5ff, transparent:true, opacity:0.85, roughness:0.6 }));
+      panel.position.copy(mid);
+      panel.lookAt(b);
+      panel.position.y = mid.y - 0.6;
+      group.add(panel);
+    }
+
+    group.name = "PracticeObby";
+    scene.add(group);
+  }
+
+  createPracticeObby();
+
+  // Daily obby island at front with waterfalls and bridges
+  function createDailyObby() {
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(16, 18, 6, 24), new THREE.MeshStandardMaterial({ color:0xb6e4c9, roughness:0.9 }));
+    base.position.set(0,-12,40);
+    base.rotation.x = 0;
+    group.add(base);
+
+    // bridges (3)
+    for (let i=0;i<3;i++){
+      const bridge = new THREE.Group();
+      for (let p=0;p<8;p++){
+        const plank = new THREE.Mesh(new THREE.BoxGeometry(3.6,0.4,1.6), new THREE.MeshStandardMaterial({ color:0x8b5a31 }));
+        plank.position.set((p-3.5)*2.6, -8 + Math.sin(p*0.3+i)*0.2, 40 - 12 + i*6);
+        plank.rotation.z = 0.04*Math.sin(p*0.6);
+        bridge.add(plank);
+      }
+      group.add(bridge);
+    }
+
+    // waterfalls - animated planes
+    const waterMat = new THREE.MeshStandardMaterial({ color:0x7fd6ff, roughness:0.2, transparent:true, opacity:0.75, metalness:0.0 });
+    for (let i=0;i<3;i++){
+      const w = new THREE.Mesh(new THREE.PlaneGeometry(6, 16, 1, 1), waterMat);
+      w.position.set(-6 + i*6, -10, 40 + 10);
+      w.rotation.x = -Math.PI/2 + 0.1;
+      w.userData.flowOffset = Math.random()*10;
+      group.add(w);
+
+      // small splash using particles
+      const splash = new THREE.PointLight(0x9fe7ff, 0.6, 10);
+      splash.position.set(-6 + i*6, -16, 40 + 10);
+      group.add(splash);
+    }
+
+    // plants and crystals
+    for (let i=0;i<6;i++){
+      const bush = new THREE.Mesh(new THREE.ConeGeometry(1.6, 2.4, 8), new THREE.MeshStandardMaterial({ color:0x96c68b }));
+      bush.position.set(-12 + Math.random()*24, -9 + Math.random()*1.4, 40 - 6 + Math.random()*12);
+      group.add(bush);
+      if (Math.random()>0.7) {
+        const cry = new THREE.Mesh(new THREE.OctahedronGeometry(0.9), new THREE.MeshStandardMaterial({ color:0xc0f0ff, emissive:0xa8f0ff, emissiveIntensity:0.35 }));
+        cry.position.copy(bush.position).add(new THREE.Vector3(0,1.6,0.5));
+        group.add(cry);
+      }
+    }
+
+    group.name = "DailyObby";
+    scene.add(group);
+  }
+
+  createDailyObby();
+
+  // Cave with rails and a minecart
+  function createCave() {
+    const caveGroup = new THREE.Group();
+    const cliff = new THREE.Mesh(new THREE.BoxGeometry(20,20,12), new THREE.MeshStandardMaterial({ color:0x4e4a4a }));
+    cliff.position.set(36, -2, 6);
+    cliff.scale.set(1.6,1.4,1.2);
+    caveGroup.add(cliff);
+
+    // tunnel opening (cylinder)
+    const tunnelGeo = new THREE.CylinderGeometry(3.8, 4.6, 10, 12, 1, true);
+    const tunnelMat = new THREE.MeshStandardMaterial({ color:0x2c2c2c });
+    const tunnel = new THREE.Mesh(tunnelGeo, tunnelMat);
+    tunnel.rotation.z = Math.PI/2;
+    tunnel.position.set(46, -2, 6);
+    caveGroup.add(tunnel);
+
+    // rails
+    const railMat = new THREE.MeshStandardMaterial({ color:0x8d6b3d });
+    const sleeperMat = new THREE.MeshStandardMaterial({ color:0x6a3822 });
+    for (let i=0;i<10;i++){
+      const railLeft = new THREE.Mesh(new THREE.BoxGeometry(10, 0.2, 0.2), railMat);
+      railLeft.position.set(36 + i*1.6, -6.6, 6.5);
+      railLeft.scale.set(1,1,1);
+      caveGroup.add(railLeft);
+      const railRight = new THREE.Mesh(new THREE.BoxGeometry(10, 0.2, 0.2), railMat);
+      railRight.position.set(36 + i*1.6, -6.6, 5.5);
+      caveGroup.add(railRight);
+
+      const sleeper = new THREE.Mesh(new THREE.BoxGeometry(1.6,0.2,1.8), sleeperMat);
+      sleeper.position.set(36 + i*1.6, -6.6, 6.0);
+      caveGroup.add(sleeper);
+    }
+
+    // minecart
+    const cart = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(3.6,1.2,2.2), new THREE.MeshStandardMaterial({ color:0x5c3c2a }));
+    body.position.set(40, -6.0, 6);
+    cart.add(body);
+    for (let w=0; w<4; w++){
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,0.6,12), new THREE.MeshStandardMaterial({ color:0x333333 }));
+      wheel.rotation.z = Math.PI/2;
+      wheel.position.set(40 + (w%2===0? -1:1), -7.0, 6 + (w<2? -0.6:0.6));
+      cart.add(wheel);
+    }
+    caveGroup.add(cart);
+
+    // crystals near cave entrance
+    const caveCrystalMat = new THREE.MeshStandardMaterial({ color:0xffe1f7, emissive:0xffc0ff, emissiveIntensity:0.2 });
+    for (let i=0;i<6;i++){
+      const cry = new THREE.Mesh(new THREE.OctahedronGeometry(1+Math.random()*1.5), caveCrystalMat);
+      cry.position.set(44 + Math.random()*4, -3 + Math.random()*3, 7 + (Math.random()-0.5)*3);
+      cry.rotation.set(Math.random()*0.6,Math.random()*Math.PI, Math.random()*0.6);
+      caveGroup.add(cry);
+      const pl = new THREE.PointLight(0xffc0f8, 0.5, 12);
+      pl.position.copy(cry.position).add(new THREE.Vector3(0,0.6,0));
+      caveGroup.add(pl);
+    }
+
+    scene.add(caveGroup);
+  }
+
+  createCave();
+
+  // spawnpoint grassy patch (left)
+  function createSpawnPoint() {
+    const g = new THREE.Group();
+    const patch = new THREE.Mesh(new THREE.CylinderGeometry(8,9,2,24), new THREE.MeshStandardMaterial({ color:0x9ded9b }));
+    patch.position.set(-36, -6, -6);
+    g.add(patch);
+
+    // stepping stones
+    for (let i=0;i<6;i++){
+      const stone = new THREE.Mesh(new THREE.BoxGeometry(2.4,0.4,1.8), new THREE.MeshStandardMaterial({ color:0xd1d1d1 }));
+      stone.position.set(-32 + i*1.8 + Math.random()*0.6, -5.0, -12 + Math.random()*6);
+      g.add(stone);
+    }
+
+    // little pond
+    const pond = new THREE.Mesh(new THREE.CircleGeometry(3.2, 18), new THREE.MeshStandardMaterial({ color:0x66dfff, transparent:true, opacity:0.9 }));
+    pond.rotation.x = -Math.PI/2;
+    pond.position.set(-36, -4.0, -9);
+    g.add(pond);
+
+    // two benches
+    for (let i=0;i<2;i++){
+      const bench = new THREE.Mesh(new THREE.BoxGeometry(3.8,0.5,1.1), new THREE.MeshStandardMaterial({ color:0x8b5a31 }));
+      bench.position.set(-30 - i*6.2, -4.1, -6 + i*3.4);
+      g.add(bench);
+    }
+
+    scene.add(g);
+  }
+
+  createSpawnPoint();
+
+  // path details & small stones near walkway
+  (function addPathDetails(){
+    const stones = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color:0xcfcfcf });
+    for (let i=0;i<40;i++){
+      const s = new THREE.Mesh(new THREE.BoxGeometry(0.8,0.2,0.5), mat);
+      const ang = Math.random()*Math.PI*2;
+      const r = 34 + Math.random()*7;
+      s.position.set(Math.cos(ang)*r, 4.2 + (Math.random()-0.5)*0.6, Math.sin(ang)*r);
+      s.rotation.y = Math.random()*Math.PI;
+      stones.add(s);
+    }
+    scene.add(stones);
+  })();
+
+  // helper: make a nice emissive shader glow effect using additional meshes
+  function addCrystalGlow(position, color=0x9fe7ff, intensity=0.6, dist=16) {
+    const pl = new THREE.PointLight(color, intensity, dist, 2);
+    pl.position.copy(position);
+    scene.add(pl);
+  }
+
+  // add many little glowing crystals around edges
+  (function scatterCrystals() {
+    const mat = new THREE.MeshStandardMaterial({ color:0xcff7ff, emissive:0x8ef0ff, emissiveIntensity:0.15, roughness:0.25 });
+    for (let i=0;i<18;i++){
+      const geo = new THREE.OctahedronGeometry(0.8 + Math.random()*1.6);
+      const m = new THREE.Mesh(geo, mat);
+      const ang = Math.random()*Math.PI*2;
+      const r = 26 + Math.random()*18;
+      m.position.set(Math.cos(ang)*r, -4 + Math.random()*12, Math.sin(ang)*r);
+      m.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+      scene.add(m);
+      addCrystalGlow(m.position, 0xaef7ff, 0.35 + Math.random()*0.6, 16);
+    }
+  })();
+
+  // subtle animated cloud-like sprite behind things (simple plane)
+  const cloudTex = new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/spark1.png');
+  const cloud = new THREE.Mesh(new THREE.PlaneGeometry(200,120), new THREE.MeshBasicMaterial({ map: cloudTex, transparent:true, opacity:0.05 }));
+  cloud.position.set(0, 60, -80);
+  scene.add(cloud);
+
+  // tiny animation helpers
+  const mixers = [];
+  function animateCrystalOscillation() {
+    scene.traverse(obj=>{
+      if (obj.isMesh && obj.geometry && (obj.geometry.type === 'OctahedronGeometry' || obj.geometry.type === 'BoxGeometry')) {
+        if (Math.random()>0.995) {
+          // add small rotation target per object randomly (cheap)
+          obj.userData.spin = 0.002 + Math.random()*0.008;
         }
-    </script>
+      }
+    });
+  }
+  animateCrystalOscillation();
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  // window resize
+  window.addEventListener('resize', onWindowResize);
+  function onWindowResize(){
+    const w = container.clientWidth, h = container.clientHeight;
+    camera.aspect = w/h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w,h);
+  }
 
-        // --- 1. SETUP SCENE ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x222222);
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(40, 40, 40);
+  // main loop
+  let clock = new THREE.Clock();
+  function tick() {
+    const t = clock.getElapsedTime();
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+    // animate waterfalls (simple vertical UV-ish movement simulation)
+    scene.traverse(obj=>{
+      if (obj.isMesh && obj.material && obj.geometry && obj.geometry.type === 'PlaneGeometry' && obj.material.transparent) {
+        // make it wobble / flow
+        obj.position.y = -8 + Math.sin(t*1.2 + (obj.userData.flowOffset||0))*0.12;
+        obj.rotation.x = -Math.PI/2 + 0.08*Math.sin(t + (obj.userData.flowOffset||0));
+      }
+      // spin emissive crystals gently
+      if (obj.userData.spin) {
+        obj.rotation.y += obj.userData.spin;
+        obj.position.y += Math.sin(t*0.3 + obj.uuid.length)*0.001; // tiny bob
+      }
+    });
 
-        const controls = new OrbitControls(camera, renderer.domElement);
-        const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-        sun.position.set(10, 20, 10);
-        scene.add(sun, new THREE.AmbientLight(0xffffff, 0.4));
+    // rotate cloud slowly
+    cloud.rotation.z += 0.0008;
 
-        // --- 2. INTEGRATED STRUCTURAL GENERATION (LOOKS LIKE REFERENCE) ---
-        const lobbyGroup = new THREE.Group();
-        
-        // Custom color palette matching the hand-drawn look
-        const matGray = new THREE.MeshPhongMaterial({ color: 0x4a4a4a });
-        const matGrave = new THREE.MeshPhongMaterial({ color: 0x666666 });
-        const matNeonBlue = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x006666 });
-        const matNeonPurp = new THREE.MeshPhongMaterial({ color: 0xff00ff, emissive: 0x660066 });
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  }
+  tick();
 
-        // -- 2a. The Main Octagonal Viewing Deck --
-        const shape = new THREE.Shape();
-        const outerRad = 20;
-        const innerRad = 15;
-        
-        // Define an octagonal ring shape
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2;
-            const x = Math.cos(angle);
-            const y = Math.sin(angle);
-            if (i === 0) shape.moveTo(x * outerRad, y * outerRad);
-            else shape.lineTo(x * outerRad, y * outerRad);
+  // GLTF exporter button
+  const exportBtn = document.getElementById('downloadBtn');
+  exportBtn.addEventListener('click', () => {
+    exportBtn.disabled = true;
+    exportBtn.textContent = 'Exporting...';
+
+    const exporter = new GLTFExporter();
+    // we clone because exporter will capture current transforms — but we don't want controls/cameras included
+    const exportScene = scene.clone();
+
+    // remove heavy helpers (lights like ambient could still remain - but that's okay)
+    const options = { binary: true, embedImages: true, trs: false };
+
+    exporter.parse(exportScene, function(result) {
+      let blob;
+      if (result instanceof ArrayBuffer) {
+        blob = new Blob([result], { type: 'application/octet-stream' });
+        saveArrayBuffer(blob, 'crystal_lobby.glb');
+      } else {
+        const output = JSON.stringify(result, null, 2);
+        blob = new Blob([output], { type: 'application/json' });
+        saveString(blob, 'crystal_lobby.gltf');
+      }
+      exportBtn.disabled = false;
+      exportBtn.textContent = 'Download GLB (GLTFExporter)';
+    }, function(progress) {
+      // progress callback may be used for big scenes
+      //console.log('export progress', progress);
+    }, options);
+  });
+
+  // helper download routines
+  function saveString(blob, filename) {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+  }
+  function saveArrayBuffer(blob, filename) {
+    saveString(blob, filename); // same underlying method works
+  }
+
+  // small UI tip: toggle wireframe with 'W'
+  window.addEventListener('keydown', (e)=>{
+    if (e.key.toLowerCase() === 'w') {
+      scene.traverse(obj => {
+        if (obj.isMesh && obj.material && obj.material.wireframe !== undefined) {
+          obj.material.wireframe = !obj.material.wireframe;
         }
-        shape.closePath();
+      });
+    }
+  });
 
-        const hole = new THREE.Path();
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2;
-            const x = Math.cos(angle);
-            const y = Math.sin(angle);
-            if (i === 0) hole.moveTo(x * innerRad, y * innerRad);
-            else hole.lineTo(x * innerRad, y * innerRad);
-        }
-        hole.closePath();
-        shape.holes.push(hole);
-
-        // Extrude for thickness (The main platform and railings)
-        const extrudeSettings = { depth: 4, bevelEnabled: true, bevelThickness: 0.5, bevelSize: 0.5, bevelSegments: 3 };
-        const deckGeometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-        const mainPlatform = new THREE.Mesh(deckGeometry, matGray);
-        mainPlatform.rotation.x = Math.PI / 2;
-        mainPlatform.name = "Viewing_Deck_Main_Platform";
-        lobbyGroup.add(mainPlatform);
-
-        // -- 2b. Add Detailed Activity Platforms (Connected) --
-        const platGeo = new THREE.CylinderGeometry(8, 9, 1.5, 8); // Matching octagonal feel
-        
-        // Specific positions for Spawn, Practice, Daily, Cave
-        const positions = [
-            { pos: [30, 0, 0], name: "Spawnpoint_Island", mat: matGrave },
-            { pos: [-30, 0, 0], name: "Practice_Obby_Island", mat: matGrave },
-            { pos: [0, 0, 30], name: "Daily_Obby_Island", mat: matGrave },
-            { pos: [0, 0, -30], name: "Cave_Entrance_Island", mat: matGrave }
-        ];
-
-        positions.forEach(p => {
-            const plat = new THREE.Mesh(platGeo, p.mat);
-            plat.position.set(...p.pos);
-            plat.name = p.name;
-            lobbyGroup.add(plat);
-
-            // Detailed "Rockcliff" Extrusions/Connectors (Looks like the reference)
-            const bridgeGeo = new THREE.ExtrudeGeometry(new THREE.Shape([
-                new THREE.Vector2(-6, -2), new THREE.Vector2(6, -2),
-                new THREE.Vector2(4, 2), new THREE.Vector2(-4, 2)
-            ]), { depth: 3, bevelEnabled: true, bevelThickness: 0.5 });
-            const bridge = new THREE.Mesh(bridgeGeo, matGray);
-            bridge.position.set(p.pos[0] / 1.5, -2, p.pos[2] / 1.5);
-            bridge.lookAt(0, -2, 0); // Point bridge toward center
-            lobbyGroup.add(bridge);
-        });
-
-        // -- 2c. Add Central Pit Pillars and Glowing Blocks --
-        const obbyGrp = new THREE.Group();
-        
-        // Large Central obby block
-        const mainObby = new THREE.Mesh(new THREE.BoxGeometry(6, 6, 6), matNeonBlue);
-        mainObby.name = "Main_Obby_Central_Cube";
-        obbyGrp.add(mainObby);
-
-        // Small floating blocks in a grid pattern
-        const blockGeo = new THREE.BoxGeometry(2, 2, 2);
-        for(let x = -2; x <= 2; x += 2) {
-            for(let y = -2; y <= 2; y += 2) {
-                if (Math.abs(x) == 2 && Math.abs(y) == 2) { // Corner blocks
-                    const block = new THREE.Mesh(blockGeo, matNeonPurp);
-                    block.position.set(x * 3, 0, y * 3);
-                    block.name = `Obby_Block_${x}_${y}`;
-                    obbyGrp.add(block);
-                }
-            }
-        }
-        obbyGrp.position.y = -10; // Lower into the pit
-        lobbyGroup.add(obbyGrp);
-
-        scene.add(lobbyGroup);
-
-        // --- 3. EXPORT LOGIC ---
-        function exportGLTF() {
-            const exporter = new GLTFExporter();
-            const options = { binary: true }; // Exports as .glb
-
-            exporter.parse(lobbyGroup, (result) => {
-                const blob = new Blob([result], { type: 'application/octet-stream' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = 'Integrated_Lobby_Structure_v2.glb';
-                link.click();
-            }, (error) => {
-                console.error('An error happened during export:', error);
-            }, options);
-        }
-
-        document.getElementById('export-btn').addEventListener('click', exportGLTF);
-
-        // Animation Loop
-        function animate() {
-            requestAnimationFrame(animate);
-            // Slowly rotate the central obby complex for show
-            obbyGrp.rotation.y += 0.005;
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        // Handle Resize
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
+  // done
+  console.info('Scene built — orbit to explore. Press "W" to toggle wireframe for debugging.');
+</script>
 </body>
 </html>
