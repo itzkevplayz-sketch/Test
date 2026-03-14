@@ -1,410 +1,736 @@
-<!DOCTYPE html>
-
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Obby Lobby Inspiration</title>
-
-<style>
-
-body{
-margin:0;
-overflow:hidden;
-background:#9ad7ff;
-font-family:sans-serif;
-}
-
-#ui{
-position:absolute;
-top:10px;
-left:10px;
-background:white;
-padding:8px 12px;
-border-radius:8px;
-box-shadow:0 4px 15px rgba(0,0,0,.15);
-font-weight:bold;
-}
-
-</style>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
-
+  <meta charset="utf-8" />
+  <title>Obby Lobby — Detailed Preview</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html,body { height:100%; margin:0; background:#a7ddff; font-family:Inter, system-ui, sans-serif; }
+    #canvas { width:100%; height:100%; display:block; }
+    #ui {
+      position: absolute; left: 14px; top: 14px;
+      background: rgba(255,255,255,0.9); padding:10px 12px; border-radius:8px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12); z-index:20;
+      font-weight:600; font-size:13px;
+    }
+    #download {
+      position: absolute; right: 14px; top:14px; z-index:20;
+      background: linear-gradient(180deg,#fff,#eaf6ff); border-radius:10px; border:1px solid rgba(0,0,0,0.06);
+      padding:8px 12px; font-weight:700; cursor:pointer; box-shadow:0 8px 20px rgba(0,0,0,0.12);
+    }
+    #tip { position:absolute; left:14px; bottom:14px; z-index:18; background:rgba(255,255,255,0.85); padding:8px 10px; border-radius:8px; font-size:12px; }
+    a { color:#0366d6 }
+    /* simple reset for anchor focus in some preview panes */
+    :focus { outline: none; }
+  </style>
+  <!-- three + examples (non-module) - these URLs are stable for preview use -->
+  <script src="https://unpkg.com/three@0.152.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.152.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://unpkg.com/three@0.152.0/examples/js/exporters/GLTFExporter.js"></script>
 </head>
-
 <body>
-
-<div id="ui">Drag to orbit • Scroll to zoom</div>
+  <div id="ui">Drag to orbit • Scroll to zoom • Press <b>W</b> to toggle wireframe</div>
+  <button id="download">Download GLB</button>
+  <div id="tip">Preview-ready — big scene for inspiration (turn off heavy export if it's slow)</div>
+  <canvas id="canvas"></canvas>
 
 <script>
+/* ============================
+Scene setup
+============================ */
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio || 1);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
 
-const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x9ad7ff)
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0xbfe9ff, 0.0011);
 
-const camera = new THREE.PerspectiveCamera(
-65,
-window.innerWidth/window.innerHeight,
-0.1,
-1000
-)
+const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 2000);
+camera.position.set(70, 60, 110);
 
-camera.position.set(60,60,80)
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 4, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
 
-const renderer = new THREE.WebGLRenderer({antialias:true})
-renderer.setSize(window.innerWidth,window.innerHeight)
-document.body.appendChild(renderer.domElement)
+/* ============================
+Lights
+============================ */
+const hemi = new THREE.HemisphereLight(0xeef7ff, 0x7a8a9a, 0.9);
+scene.add(hemi);
 
-const controls = new THREE.OrbitControls(camera,renderer.domElement)
-controls.enableDamping=true
+const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+sun.position.set(-60, 120, 40);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -120; sun.shadow.camera.right = 120;
+sun.shadow.camera.top = 120; sun.shadow.camera.bottom = -120;
+scene.add(sun);
 
-/* LIGHTING */
+// gentle fill spotlights for crystals
+const subtle = new THREE.PointLight(0xaef7ff, 0.3, 160);
+subtle.position.set(10, 35, 10);
+scene.add(subtle);
 
-scene.add(new THREE.AmbientLight(0xffffff,0.7))
+/* ============================
+Materials (palette)
+============================ */
+const matStone = new THREE.MeshStandardMaterial({ color: 0xcfc7bb, roughness: 0.9, metalness: 0.02 });
+const matPavement = new THREE.MeshStandardMaterial({ color: 0xe9e2d6, roughness: 0.8 });
+const matGrass = new THREE.MeshStandardMaterial({ color: 0xa6f2a6, roughness: 0.9 });
+const matWood = new THREE.MeshStandardMaterial({ color: 0x8e5b3a, roughness: 0.8 });
+const matDark = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 1.0 });
+const matGlass = new THREE.MeshPhysicalMaterial({ color: 0xeef9ff, metalness: 0.0, roughness: 0.15, transmission: 0.7, transparent: true });
+const matCrystalBase = new THREE.MeshStandardMaterial({ color: 0xd7f8ff, emissive: 0x9feaff, emissiveIntensity: 0.8, roughness: 0.15, metalness: 0.1 });
 
-const sun = new THREE.DirectionalLight(0xffffff,1)
-sun.position.set(40,60,30)
-scene.add(sun)
+/* small helper utilities */
+function rnd(min, max) { return min + Math.random() * (max - min); }
+function degToRad(d) { return d * Math.PI / 180; }
 
-/* MATERIALS */
+/* ============================
+Create main floating island base
+============================ */
+function createIslandBase() {
+  const group = new THREE.Group();
 
-const stone = new THREE.MeshStandardMaterial({color:0xd0d0d0})
-const grass = new THREE.MeshStandardMaterial({color:0x7bdc7b})
-const wood = new THREE.MeshStandardMaterial({color:0x8b5a2b})
-const crystalMat = new THREE.MeshStandardMaterial({
-color:0x88e6ff,
-emissive:0x66ffff,
-emissiveIntensity:0.6
-})
+  // large base (slightly domed) - lathe of a profile for nice rounded cliff
+  const pts = [];
+  for (let i = 0; i < 18; i++) {
+    const x = 60 * Math.cos(i / 17 * Math.PI) * 0.02 + 60; // simple profile
+    pts.push(new THREE.Vector2(60 - i * 3.0, -10 + Math.sin(i * 0.2) * 1.3));
+  }
+  // fallback simple cylinder with bevel: easier & safe for preview
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(60, 70, 18, 64), matGrass);
+  base.position.y = -6;
+  base.receiveShadow = true;
+  group.add(base);
 
-/* =====================
-MAIN ISLAND
-===================== */
+  // outer ring walkway (raised)
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(48, 48, 4.2, 64, 1, false), matPavement);
+  ring.position.y = 2.2;
+  group.add(ring);
 
-const island = new THREE.Mesh(
-new THREE.CylinderGeometry(50,60,10,64),
-grass
-)
+  // inner walkway edge (the "pit lip")
+  const lip = new THREE.Mesh(new THREE.CylinderGeometry(30.5, 30.5, 2.6, 6, 1, true), matStone);
+  lip.position.y = 0;
+  group.add(lip);
 
-scene.add(island)
+  // low cliff decorations (simple ramp bumps)
+  for (let i = 0; i < 6; i++) {
+    const rock = new THREE.Mesh(new THREE.BoxGeometry(6 + Math.random() * 6, 3, 6 + Math.random() * 6), new THREE.MeshStandardMaterial({ color: 0x7ea383 }));
+    rock.position.set(Math.cos(i / 6 * Math.PI * 2) * 48, -0.5, Math.sin(i / 6 * Math.PI * 2) * 48);
+    rock.rotation.y = Math.random() * Math.PI * 2;
+    group.add(rock);
+  }
 
-/* =====================
-STONE RING WALL
-===================== */
+  group.name = "MainIsland";
+  return group;
+}
+const mainIsland = createIslandBase();
+scene.add(mainIsland);
 
-for(let i=0;i<40;i++){
+/* ============================
+Stone ring wall posts & railings around pit (detailed)
+============================ */
+function createPitRailings() {
+  const railGroup = new THREE.Group();
 
-const block = new THREE.Mesh(
-new THREE.BoxGeometry(4,3,2),
-stone
-)
+  // posts
+  const postMat = new THREE.MeshStandardMaterial({ color: 0x8c8c8c, roughness: 0.9 });
+  const railMat = new THREE.MeshStandardMaterial({ color: 0xdde6e6, roughness: 0.7 });
 
-let angle = i*(Math.PI*2/40)
+  const posts = 48;
+  for (let i = 0; i < posts; i++) {
+    const ang = i / posts * Math.PI * 2;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 2.4, 8), postMat);
+    const r = 38;
+    post.position.set(Math.cos(ang) * r, 3.2, Math.sin(ang) * r);
+    post.rotation.y = -ang;
+    railGroup.add(post);
 
-block.position.set(
-Math.cos(angle)*40,
-5,
-Math.sin(angle)*40
-)
+    // horizontal rail connecting posts (approx arcs in two bands)
+    if (i % 2 === 0) {
+      const arc = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.16, 0.4), railMat);
+      // position mid between posts on circumference
+      const midAng = (i + 0.5) / posts * Math.PI * 2;
+      arc.position.set(Math.cos(midAng) * (r + 0.6), 4.1, Math.sin(midAng) * (r + 0.6));
+      arc.rotation.y = -midAng;
+      railGroup.add(arc);
+    }
+  }
+  scene.add(railGroup);
+  return railGroup;
+}
+const railings = createPitRailings();
 
-block.lookAt(0,5,0)
+/* ============================
+Main hexagonal pit with central crystals
+============================ */
+function createCentralPitAndCrystals() {
+  const pitGroup = new THREE.Group();
 
-scene.add(block)
+  // hexagonal pit walls: cylinder with 6 radial segments (looks hex)
+  const pitWalls = new THREE.Mesh(new THREE.CylinderGeometry(30, 30, 40, 6, 1, true), new THREE.MeshStandardMaterial({ color: 0xbab5ad, roughness: 1 }));
+  pitWalls.position.y = -14;
+  pitWalls.receiveShadow = true;
+  pitGroup.add(pitWalls);
 
+  // pit rim inner tile floor (darker stone)
+  const floor = new THREE.Mesh(new THREE.CylinderGeometry(28, 28, 0.5, 32), new THREE.MeshStandardMaterial({ color: 0x7f7f82 }));
+  floor.position.y = -23.8;
+  pitGroup.add(floor);
+
+  // central crystal cluster
+  const crystalGroup = new THREE.Group();
+  // helper to make crystals (elongated octa or stretched boxes)
+  function makeCrystal(sizeX = 1.4, sizeY = 2.8, sizeZ = 1.4, color = 0xdaf6ff) {
+    // a two-part shape: stretched octahedron + tapered prism
+    const oct = new THREE.OctahedronGeometry(1, 0);
+    const mesh = new THREE.Mesh(oct, matCrystalBase.clone());
+    mesh.scale.set(sizeX, sizeY, sizeZ);
+    mesh.material.color = new THREE.Color(color);
+    mesh.material.emissive = new THREE.Color(color);
+    return mesh;
+  }
+
+  // create many crystals with varied sizes, cluster towards center
+  const crystalsTotal = 140;
+  for (let i = 0; i < crystalsTotal; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = Math.random() * 10 + (Math.random() > 0.6 ? 2 : 6);
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    const y = -22 + Math.random() * 12;
+    const s = 0.8 + Math.random() * 4.4;
+    const c = 0.8 + Math.random() * 0.35;
+    const col = new THREE.Color().setHSL(0.56 + Math.random() * 0.06, 0.7, 0.7 * c);
+    const cry = makeCrystal(1.0 + Math.random() * 1.2, 1.4 + Math.random() * 3.8, 1.0 + Math.random() * 1.2);
+    cry.position.set(x, y, z);
+    cry.rotation.set(Math.random() * .9, Math.random() * Math.PI, Math.random() * .9);
+    cry.scale.multiplyScalar(0.9 + Math.random() * 1.8);
+    cry.material.color = col;
+    cry.material.emissive = col.clone().multiplyScalar(0.8);
+    crystalGroup.add(cry);
+
+    // small point lights around bigger crystals
+    if (Math.random() > 0.85) {
+      const pl = new THREE.PointLight(col.getHex(), 0.35 + Math.random() * 0.6, 28);
+      pl.position.set(x, y + 1.6, z);
+      pitGroup.add(pl);
+    }
+  }
+
+  // a central large crystal (very tall)
+  const central = new THREE.Mesh(new THREE.OctahedronGeometry(1.9, 0), matCrystalBase.clone());
+  central.scale.set(6, 9.8, 6);
+  central.position.set(0, -13, 0);
+  central.material.color = new THREE.Color(0xdfefff);
+  central.material.emissive = new THREE.Color(0xcfeeff);
+  crystalGroup.add(central);
+
+  pitGroup.add(crystalGroup);
+  pitGroup.name = "CentralPit";
+  scene.add(pitGroup);
+  return pitGroup;
+}
+const centralPit = createCentralPitAndCrystals();
+
+/* tiny shim for crystal animation */
+const crystalBobs = [];
+centralPit.traverse(m => { if (m.isMesh && m.material && m.material.emissive) crystalBobs.push(m); });
+
+/* ============================
+Pavement tiles around ring (detailed walkway tiling)
+============================ */
+function createWalkwayTiles() {
+  const group = new THREE.Group();
+  const tileMat = new THREE.MeshStandardMaterial({ color: 0xe9dac8, roughness: 0.85 });
+  const tileCount = 48;
+  for (let i = 0; i < tileCount; i++) {
+    const angle = i / tileCount * Math.PI * 2;
+    // place sets of tiles along circumference
+    for (let j = 0; j < 2; j++) {
+      const tile = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.5, 3.6), tileMat);
+      const r = 30 + j * 3;
+      tile.position.set(Math.cos(angle) * r, 1.9 + (j * 0.01), Math.sin(angle) * r);
+      tile.rotation.y = -angle + (j ? 0.08 : -0.02);
+      group.add(tile);
+    }
+  }
+
+  // a few benches on top ring (decorative)
+  function addBench(angle, offsetR) {
+    const bench = new THREE.Group();
+    bench.add(new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.6, 1.2), matWood));
+    bench.children[0].position.set(0, 0.3, 0);
+    const legs = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.7, 0.7), matWood);
+    legs.position.set(-1.6, -0.05, 0);
+    bench.add(legs);
+    bench.add(legs.clone().translateZ(0)); // right leg
+    bench.position.set(Math.cos(angle) * offsetR, 2.4, Math.sin(angle) * offsetR);
+    bench.rotation.y = -angle;
+    group.add(bench);
+  }
+  addBench(-0.3, 38); addBench(1.1, 38); addBench(2.25, 38);
+
+  scene.add(group);
+  return group;
+}
+const walkway = createWalkwayTiles();
+
+/* ============================
+Floating practice obby platforms (above top)
+============================ */
+function createPracticePlatforms() {
+  const g = new THREE.Group();
+  const positions = [
+    [-20, 45, -6],
+    [-8, 48, -2],
+    [6, 47, 6],
+    [20, 46, 2],
+    [10, 50, 18],
+    [-12, 50, 20]
+  ];
+  positions.forEach((p, i) => {
+    const base = new THREE.Mesh(new THREE.BoxGeometry(7.5, 1.1, 7.5), matPavement);
+    base.position.set(p[0], p[1], p[2]);
+    base.castShadow = true;
+    g.add(base);
+
+    // translucent glass platform in center occasionally
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.12, 5.4), matGlass);
+    glass.position.set(p[0], p[1] + 0.7, p[2]);
+    g.add(glass);
+
+    // small crystal pedestal
+    if (i % 2 === 0) {
+      const cry = new THREE.Mesh(new THREE.OctahedronGeometry(0.9, 0), matCrystalBase.clone());
+      cry.position.set(p[0], p[1] + 1.6, p[2]);
+      cry.material.emissiveIntensity = 1.0;
+      g.add(cry);
+    }
+
+    // tiny connector panels
+    if (i > 0) {
+      const prev = positions[i - 1];
+      const mid = [(p[0] + prev[0]) / 2, (p[1] + prev[1]) / 2 - 0.5, (p[2] + prev[2]) / 2];
+      const connector = new THREE.Mesh(new THREE.BoxGeometry(Math.max(1, Math.hypot(p[0] - prev[0], p[2] - prev[2])), 0.14, 1.6), new THREE.MeshStandardMaterial({ color: 0xeaf6ff, roughness: 0.6, transparent: true, opacity: 0.86 }));
+      connector.position.set(mid[0], mid[1], mid[2]);
+      connector.lookAt(new THREE.Vector3(p[0], p[1], p[2]));
+      g.add(connector);
+    }
+  });
+
+  g.name = "PracticeObby";
+  scene.add(g);
+  return g;
+}
+const practice = createPracticePlatforms();
+
+/* ============================
+Spawnpoint island left (pond, benches, crystals)
+============================ */
+function createSpawnPoint() {
+  const g = new THREE.Group();
+  const patch = new THREE.Mesh(new THREE.CylinderGeometry(9, 10, 3, 28), matGrass);
+  patch.position.set(-42, -1.5, -11);
+  g.add(patch);
+
+  // pond (blue disc)
+  const pondMat = new THREE.MeshStandardMaterial({ color: 0x64d9ff, roughness: 0.4, transparent: true, opacity: 0.95 });
+  const pond = new THREE.Mesh(new THREE.CircleGeometry(3.2, 24), pondMat);
+  pond.rotation.x = -Math.PI / 2;
+  pond.position.set(-42, -0.15, -9);
+  g.add(pond);
+
+  // bench cluster and lamp
+  const bench = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.5, 1.2), matWood);
+  bench.position.set(-36.6, -0.2, -12.2);
+  g.add(bench);
+
+  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.2, 8), matDark);
+  lamp.position.set(-46.5, 1.0, -8.5);
+  g.add(lamp);
+  const lampLight = new THREE.PointLight(0xfff3d9, 0.8, 12);
+  lampLight.position.set(-46.5, 2.2, -8.5);
+  g.add(lampLight);
+
+  // small decorative crystals near pond
+  for (let i = 0; i < 6; i++) {
+    const c = new THREE.Mesh(new THREE.OctahedronGeometry(0.55 + Math.random() * 0.9), matCrystalBase.clone());
+    c.position.set(-42 + (Math.random() - 0.5) * 5, -1 + Math.random() * 1.8, -11 + (Math.random() - 0.5) * 5);
+    c.material.emissiveIntensity = 0.5;
+    g.add(c);
+  }
+
+  scene.add(g);
+  return g;
+}
+const spawn = createSpawnPoint();
+
+/* ============================
+Cave entrance and minecart rails (right)
+============================ */
+function createCaveAndRails() {
+  const g = new THREE.Group();
+
+  // cave cliff face (compound shapes)
+  const cliff1 = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 14), new THREE.MeshStandardMaterial({ color: 0x675c56 }));
+  cliff1.position.set(44, -2, 8);
+  cliff1.rotation.set(0, -0.25, 0);
+  g.add(cliff1);
+
+  const cliff2 = new THREE.Mesh(new THREE.BoxGeometry(8, 10, 8), new THREE.MeshStandardMaterial({ color: 0x524842 }));
+  cliff2.position.set(54, 2, 12);
+  cliff2.rotation.set(0, -0.18, 0);
+  g.add(cliff2);
+
+  // tunnel opening: rotated cylinder for visual
+  const tunnel = new THREE.Mesh(new THREE.CylinderGeometry(4.8, 5.6, 10, 16, 1, true), matDark);
+  tunnel.rotation.z = Math.PI / 2;
+  tunnel.position.set(58, -1.5, 10);
+  g.add(tunnel);
+
+  // rails leading to cave (sleepers + rails)
+  const railMat = new THREE.MeshStandardMaterial({ color: 0x7d5639, roughness: 0.9 });
+  const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x5b3a29, roughness: 1.0 });
+
+  const railsStart = 34;
+  for (let i = 0; i < 26; i++) {
+    // two metal rails (thin boxes)
+    const left = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.22, 0.18), railMat);
+    const right = left.clone();
+    left.position.set(railsStart + i * 1.7, -6.2 + Math.sin(i * 0.05) * 0.02, 10.2);
+    right.position.set(railsStart + i * 1.7, -6.2 + Math.sin(i * 0.05) * 0.02, 9.2);
+    g.add(left); g.add(right);
+
+    // sleepers
+    if (i % 1 === 0) {
+      const sleeper = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.2, 1.8), sleeperMat);
+      sleeper.position.set(railsStart + i * 1.7, -6.6, 9.7);
+      sleeper.rotation.y = rnd(-0.03, 0.03);
+      g.add(sleeper);
+    }
+  }
+
+  // simple minecart model close to cave mouth
+  const cart = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.2, 2.2), new THREE.MeshStandardMaterial({ color: 0x5a3d2b }));
+  body.position.set(44.6, -6.0, 9.7);
+  cart.add(body);
+  // wheels
+  for (let w = 0; w < 4; w++) {
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.5, 12), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(44.6 + (w % 2 === 0 ? -0.9 : 0.9), -6.9, 9.7 + (w < 2 ? -0.6 : 0.6));
+    cart.add(wheel);
+  }
+  g.add(cart);
+
+  // crystals near cave
+  for (let i = 0; i < 8; i++) {
+    const c = new THREE.Mesh(new THREE.OctahedronGeometry(0.95 + Math.random() * 1.2), matCrystalBase.clone());
+    c.position.set(50 + Math.random() * 6, -1 + Math.random() * 4, 7 + Math.random() * 6 - 3);
+    c.material.emissiveIntensity = 0.4 + Math.random() * 0.6;
+    g.add(c);
+    if (Math.random() > 0.6) {
+      const pl = new THREE.PointLight(0xffc0f8, 0.25 + Math.random() * 0.25, 12);
+      pl.position.copy(c.position).add(new THREE.Vector3(0, 1.1, 0));
+      g.add(pl);
+    }
+  }
+
+  scene.add(g);
+  g.name = "CaveArea";
+  return g;
+}
+const cave = createCaveAndRails();
+
+/* ============================
+Daily Obby island at front with waterfalls and bridges
+============================ */
+function createDailyObby() {
+  const g = new THREE.Group();
+
+  // base small island
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(18, 20, 4.5, 32), matGrass);
+  base.position.set(0, -6.2, 42.2);
+  g.add(base);
+
+  // winding path stones (simple boxes)
+  for (let i = 0; i < 18; i++) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.5, 1.8), matStone);
+    const ang = i / 18 * Math.PI;
+    p.position.set(Math.sin(ang) * 10 + (i * 0.22), -4.2 + Math.cos(i * 0.12) * 0.05, 42 + i * -0.6);
+    p.rotation.y = Math.random() * 0.2 - 0.1;
+    g.add(p);
+  }
+
+  // wooden bridges (3 small bridges)
+  function addBridge(x, z, dir = 0) {
+    const bridge = new THREE.Group();
+    for (let i = 0; i < 10; i++) {
+      const plank = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.28, 1.2), matWood);
+      plank.position.set(x + (i - 4.5) * 1.2 * Math.cos(dir), -8.6 + i * 0.02, z + (i - 4.5) * 1.2 * Math.sin(dir));
+      plank.rotation.y = dir;
+      bridge.add(plank);
+      // ropes as thin cylinders
+      const ropeLeft = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 6, 6), new THREE.MeshStandardMaterial({ color: 0x915f3a }));
+      ropeLeft.rotation.z = Math.PI / 2;
+      ropeLeft.position.set(x, -7.15, z - 3.5);
+      ropeLeft.visible = false; // visual density - hide to keep it simpler
+      // bridge.add(ropeLeft);
+    }
+    g.add(bridge);
+  }
+  addBridge(-6, 34, 0.2);
+  addBridge(6, 38, -0.18);
+  addBridge(0, 46, 0.05);
+
+  // waterfalls: animated planes with canvas textures
+  const waterPlanes = [];
+  for (let i = 0; i < 2; i++) {
+    const wCanvas = document.createElement('canvas');
+    wCanvas.width = 256; wCanvas.height = 512;
+    const ctx = wCanvas.getContext('2d');
+    // draw initial vertical gradient lines (we will animate)
+    function drawWater(offset) {
+      ctx.clearRect(0, 0, wCanvas.width, wCanvas.height);
+      // gradient base
+      const g = ctx.createLinearGradient(0, 0, 0, wCanvas.height);
+      g.addColorStop(0, 'rgba(220,255,255,0.9)');
+      g.addColorStop(0.6, 'rgba(120,220,255,0.7)');
+      g.addColorStop(1, 'rgba(60,150,255,0.1)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, wCanvas.width, wCanvas.height);
+
+      // moving streaks
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      for (let s = 0; s < 16; s++) {
+        const x = Math.sin((s * 3 + offset) * 0.18) * 40 + (s / 16) * wCanvas.width;
+        ctx.fillRect(x, 0, 8, wCanvas.height);
+      }
+    }
+    drawWater(0);
+
+    const tex = new THREE.CanvasTexture(wCanvas);
+    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(1, 1);
+
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.85, depthWrite: false });
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(6, 16), mat);
+    plane.position.set(-6 + i * 12, -5.5, 48.5);
+    plane.rotation.x = -Math.PI / 2;
+    g.add(plane);
+
+    waterPlanes.push({ canvas: wCanvas, ctx, tex, drawWater, plane, offset: Math.random() * 100 });
+  }
+
+  scene.add(g);
+  g.userData.waterPlanes = waterPlanes;
+  g.name = "DailyObby";
+  return g;
+}
+const dailyObby = createDailyObby();
+
+/* ============================
+Scatter small crystals, stones, and lamps around the ring & island edges
+============================ */
+function scatterDecor() {
+  const deco = new THREE.Group();
+  const crystalMatLocal = matCrystalBase.clone();
+  for (let i = 0; i < 48; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = 24 + Math.random() * 32;
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    const y = rnd(-4, 6);
+    const scale = rnd(0.4, 1.8);
+    const c = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0), crystalMatLocal.clone());
+    c.position.set(x, y, z);
+    c.scale.multiplyScalar(scale);
+    c.rotation.set(Math.random() * 1, Math.random() * Math.PI, Math.random() * 1);
+    c.material.emissiveIntensity = 0.35 + Math.random() * 0.7;
+    deco.add(c);
+    // occasional soft light
+    if (Math.random() > 0.86) {
+      const pl = new THREE.PointLight(0xaef7ff, 0.4 + Math.random() * 0.6, 18);
+      pl.position.set(x, y + 1.5, z);
+      deco.add(pl);
+    }
+  }
+  scene.add(deco);
+  return deco;
+}
+const decor = scatterDecor();
+
+/* ============================
+Path from spawn to main ring & small stairs
+============================ */
+function createPathToRing() {
+  const g = new THREE.Group();
+  for (let i = 0; i < 18; i++) {
+    const stone = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.5, 2.2), matStone);
+    const t = i / 18;
+    const ang = -Math.PI / 2 + t * Math.PI * 0.7;
+    const r = 38 - t * 16;
+    stone.position.set(Math.cos(ang) * r - 4, 1.9 - t * 2.2, Math.sin(ang) * r + 6);
+    stone.rotation.y = Math.random() * 0.15;
+    g.add(stone);
+  }
+  scene.add(g);
+  return g;
+}
+const path = createPathToRing();
+
+/* ============================
+Add a couple of lampposts around walkway
+============================ */
+function addLamp(x, z) {
+  const lamp = new THREE.Group();
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3, 8), matDark);
+  post.position.set(0, 1.0, 0);
+  lamp.add(post);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.46, 8, 6), new THREE.MeshStandardMaterial({ color: 0xfff3d9, emissive: 0xfff0d0, emissiveIntensity: 2.0 }));
+  bulb.position.set(0, 2.1, 0);
+  lamp.add(bulb);
+  const pl = new THREE.PointLight(0xfff6d2, 1.0, 12);
+  pl.position.set(0, 2.1, 0);
+  lamp.add(pl);
+  lamp.position.set(x, 2.2, z);
+  scene.add(lamp);
+}
+addLamp(26, -34);
+addLamp(-32, 30);
+addLamp(34, 32);
+
+/* ============================
+Subtle ground objects near railings: small stones & plants
+============================ */
+(function scatterSmallStuff() {
+  const plants = new THREE.Group();
+  for (let i = 0; i < 70; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = 22 + Math.random() * 25;
+    const x = Math.cos(a) * r; const z = Math.sin(a) * r;
+    const gPlant = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.2, 6), new THREE.MeshStandardMaterial({ color: 0x6abf69 }));
+    gPlant.position.set(x, rnd(-5.0, 4.5), z);
+    gPlant.rotation.y = Math.random() * Math.PI;
+    gPlant.scale.setScalar(0.6 + Math.random() * 1.2);
+    plants.add(gPlant);
+  }
+  scene.add(plants);
+})();
+
+/* ============================
+Animation loop & waterfall animation
+============================ */
+const clock = new THREE.Clock();
+
+function animate() {
+  const t = clock.getElapsedTime();
+
+  // animate crystals bobbing/rotating
+  crystalBobs.forEach((m, idx) => {
+    m.rotation.y += 0.0015 + Math.sin(t * 0.6 + idx) * 0.0009;
+    m.position.y += Math.sin(t * 0.6 + idx) * 0.0007; // very small bob
+  });
+
+  // animate floating platforms (gentle up/down)
+  practice.children.forEach((c, i) => {
+    c.position.y += Math.sin(t * 0.4 + i) * 0.002;
+    c.rotation.y += (i % 2 === 0 ? 0.0006 : -0.0006);
+  });
+
+  // update waterfalls canvas textures
+  if (dailyObby && dailyObby.userData && dailyObby.userData.waterPlanes) {
+    dailyObby.userData.waterPlanes.forEach(w => {
+      w.offset += 1.6;
+      w.drawWater(w.offset);
+      w.tex.needsUpdate = true;
+    });
+  }
+
+  // slight slow rotation on the cloud background for depth
+  // controls
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
 }
 
-/* =====================
-CENTER PIT
-===================== */
+animate();
 
-const pit = new THREE.Mesh(
-new THREE.CylinderGeometry(25,25,20,10,true),
-new THREE.MeshStandardMaterial({color:0x666666})
-)
+/* ============================
+Window resize & key toggles
+============================ */
+window.addEventListener('resize', () => {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+});
 
-pit.position.y=-5
-scene.add(pit)
+window.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'w') {
+    // toggle wireframe on meshes (for quick inspection)
+    scene.traverse(obj => {
+      if (obj.isMesh && obj.material && obj.material.wireframe !== undefined) {
+        obj.material.wireframe = !obj.material.wireframe;
+      }
+    });
+  }
+});
 
-/* =====================
-CRYSTAL FIELD
-===================== */
+/* ============================
+GLTF Exporter — Download button
+============================ */
+const exportBtn = document.getElementById('download');
+exportBtn.addEventListener('click', () => {
+  exportBtn.disabled = true;
+  exportBtn.textContent = 'Exporting…';
 
-function crystal(x,y,z){
+  // Clone a clean scene (avoid renderer-specific data)
+  const exporter = new THREE.GLTFExporter();
+  // prepare options: binary glb
+  const options = { binary: true, trs: false, onlyVisible: true, truncateDrawRange: true };
 
-const geo=new THREE.OctahedronGeometry(
-1+Math.random()*3
-)
+  exporter.parse(scene, function(result) {
+    let output;
+    if (result instanceof ArrayBuffer) {
+      output = new Blob([result], { type: 'application/octet-stream' });
+      saveBlob(output, 'obby_lobby.glb');
+    } else {
+      const text = JSON.stringify(result, null, 2);
+      output = new Blob([text], { type: 'application/json' });
+      saveBlob(output, 'obby_lobby.gltf');
+    }
+    exportBtn.disabled = false;
+    exportBtn.textContent = 'Download GLB';
+  }, function(progress) {
+    // progress (optional)
+    //console.log('Export progress: ', progress);
+  }, options);
+});
 
-const mesh=new THREE.Mesh(geo,crystalMat)
-
-mesh.position.set(x,y,z)
-mesh.rotation.y=Math.random()*Math.PI
-
-scene.add(mesh)
-
+function saveBlob(blob, filename) {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 2000);
 }
 
-for(let i=0;i<120;i++){
-
-crystal(
-(Math.random()-0.5)*20,
--4+Math.random()*10,
-(Math.random()-0.5)*20
-)
-
-}
-
-/* =====================
-OBBY STEPS
-===================== */
-
-for(let i=0;i<16;i++){
-
-const step=new THREE.Mesh(
-new THREE.BoxGeometry(6,1,6),
-stone
-)
-
-let angle=i*(Math.PI*2/16)
-
-step.position.set(
-Math.cos(angle)*18,
--4,
-Math.sin(angle)*18
-)
-
-scene.add(step)
-
-}
-
-/* =====================
-FLOATING PRACTICE OBBY
-===================== */
-
-for(let i=0;i<8;i++){
-
-const plat=new THREE.Mesh(
-new THREE.BoxGeometry(7,1,7),
-stone
-)
-
-plat.position.set(
--20+i*5,
-25+Math.sin(i)*3,
--10+i*4
-)
-
-scene.add(plat)
-
-}
-
-/* =====================
-SPAWN AREA
-===================== */
-
-const spawnIsland=new THREE.Mesh(
-new THREE.CylinderGeometry(10,12,3,32),
-grass
-)
-
-spawnIsland.position.set(-35,2,-10)
-scene.add(spawnIsland)
-
-/* =====================
-BENCHES
-===================== */
-
-function bench(x,z){
-
-const seat=new THREE.Mesh(
-new THREE.BoxGeometry(4,0.5,1),
-wood
-)
-
-seat.position.set(x,4,z)
-
-const legs1=new THREE.Mesh(
-new THREE.BoxGeometry(0.5,1,1),
-wood
-)
-
-legs1.position.set(x-1.5,3.5,z)
-
-const legs2=legs1.clone()
-legs2.position.x=x+1.5
-
-scene.add(seat)
-scene.add(legs1)
-scene.add(legs2)
-
-}
-
-bench(-30,-5)
-bench(30,-5)
-bench(-10,35)
-
-/* =====================
-DAILY OBBY ISLAND
-===================== */
-
-const daily=new THREE.Mesh(
-new THREE.CylinderGeometry(18,20,4,32),
-grass
-)
-
-daily.position.set(0,-2,40)
-scene.add(daily)
-
-/* BRIDGES */
-
-for(let i=0;i<8;i++){
-
-const plank=new THREE.Mesh(
-new THREE.BoxGeometry(3,0.4,2),
-wood
-)
-
-plank.position.set(
-(i-4)*3,
-0,
-25
-)
-
-scene.add(plank)
-
-}
-
-/* =====================
-WATERFALLS
-===================== */
-
-const waterMat=new THREE.MeshStandardMaterial({
-color:0x66ccff,
-transparent:true,
-opacity:0.7
-})
-
-for(let i=0;i<3;i++){
-
-const fall=new THREE.Mesh(
-new THREE.PlaneGeometry(6,15),
-waterMat
-)
-
-fall.position.set(
--6+i*6,
--5,
-48
-)
-
-fall.rotation.x=-Math.PI/2
-
-scene.add(fall)
-
-}
-
-/* =====================
-CAVE CLIFF
-===================== */
-
-const cliff=new THREE.Mesh(
-new THREE.BoxGeometry(20,18,16),
-new THREE.MeshStandardMaterial({color:0x555555})
-)
-
-cliff.position.set(38,0,8)
-scene.add(cliff)
-
-/* CAVE ENTRANCE */
-
-const cave=new THREE.Mesh(
-new THREE.CylinderGeometry(4,4,10,16,true),
-new THREE.MeshStandardMaterial({color:0x222222})
-)
-
-cave.rotation.z=Math.PI/2
-cave.position.set(48,0,8)
-
-scene.add(cave)
-
-/* =====================
-MINECART RAILS
-===================== */
-
-for(let i=0;i<20;i++){
-
-const rail=new THREE.Mesh(
-new THREE.BoxGeometry(2,0.3,0.3),
-wood
-)
-
-rail.position.set(
-35+i*1.5,
--4,
-8
-)
-
-scene.add(rail)
-
-}
-
-/* =====================
-PLANTS
-===================== */
-
-function plant(x,z){
-
-const bush=new THREE.Mesh(
-new THREE.ConeGeometry(1.5,3,8),
-new THREE.MeshStandardMaterial({color:0x3aa63a})
-)
-
-bush.position.set(x,4,z)
-
-scene.add(bush)
-
-}
-
-for(let i=0;i<30;i++){
-
-plant(
-(Math.random()-0.5)*70,
-(Math.random()-0.5)*70
-)
-
-}
-
-/* =====================
-ANIMATE
-===================== */
-
-function animate(){
-
-requestAnimationFrame(animate)
-
-controls.update()
-
-renderer.render(scene,camera)
-
-}
-
-animate()
-
-/* RESIZE */
-
-window.addEventListener("resize",()=>{
-
-camera.aspect=window.innerWidth/window.innerHeight
-camera.updateProjectionMatrix()
-
-renderer.setSize(
-window.innerWidth,
-window.innerHeight
-)
-
-})
+/* ============================
+Done — console tips
+============================ */
+console.info('Detailed obby lobby scene ready. Use orbit controls to inspect. If preview runs slow, reduce crystal count or close other tabs.');
 
 </script>
-
 </body>
 </html>
