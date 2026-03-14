@@ -1,25 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Complex Lobby Pro-Exporter</title>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedural HTML Castle</title>
     <style>
-        body { margin: 0; background-color: #f0f8ff; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-        #overlay { position: absolute; top: 20px; left: 20px; z-index: 100; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 12px; border: 1px solid #444; pointer-events: none; }
-        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 100; }
-        button { padding: 18px 36px; font-size: 20px; font-weight: bold; cursor: pointer; background: #00c3ff; color: white; border: none; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,195,255,0.4); transition: 0.2s; }
-        button:hover { background: #0099cc; transform: scale(1.05); }
-        h1 { margin: 0 0 10px 0; font-size: 24px; color: #00c3ff; }
-        p { margin: 0; color: #aaa; }
+        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: sans-serif; }
+        #ui { position: absolute; top: 20px; left: 20px; z-index: 10; }
+        button { 
+            padding: 12px 20px; font-size: 16px; cursor: pointer; 
+            background: #4CAF50; color: white; border: none; border-radius: 5px;
+            transition: background 0.3s;
+        }
+        button:hover { background: #45a049; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
-    <div id="overlay">
-        <h1>Complex Lobby Structure</h1>
-        <p>• Detailed Octagonal Viewing Deck<br>• Fully-Detailed Pit Obby<br>• 4 Elaborate perimeter Islands<br>• Removed All Text Labels</p>
-    </div>
-    <div id="controls">
-        <button id="export-btn">Download .GLB Model</button>
+
+    <div id="ui">
+        <button id="export-btn">Download Castle (.gltf)</button>
     </div>
 
     <script type="importmap">
@@ -33,185 +33,110 @@
 
     <script type="module">
         import * as THREE from 'three';
-        import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 
-        // --- 1. CORE THREE.JS SETUP ---
+        // --- Setup Scene ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xd0e8ff); // Sky blue
-        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(50, 50, 50);
-
+        scene.background = new THREE.Color(0x87ceeb);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
         const controls = new OrbitControls(camera, renderer.domElement);
-        controls.target.set(0, -5, 0); // Focus on the pit area
+        camera.position.set(15, 15, 15);
         controls.update();
 
-        // Detailed lighting palette matching the cartoon look
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-        sun.position.set(15, 30, 15);
-        scene.add(ambientLight, sun);
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1);
+        sunLight.position.set(10, 20, 10);
+        scene.add(sunLight);
 
-        // --- 2. COMPLEX STRUCTURE GENERATION ---
-        const lobbyGroup = new THREE.Group();
-        lobbyGroup.name = "Full_Detailed_Lobby_V3";
-        
-        // Custom color palette for materials
-        const colorTanFloor = 0xd2b48c;
-        const colorDarkGray = 0x4a4a4a;
-        const colorGrave = 0x666666;
-        const colorNeonBlue = 0x00ffff;
-        const colorNeonPurp = 0xff00ff;
-        const colorWater = 0x40a0ff;
-        const colorWood = 0x8b4513;
-        const colorGrass = 0x2e8b57;
-        const colorMoss = 0x3cb371;
+        // --- The Castle Logic ---
+        const castleGroup = new THREE.Group();
+        scene.add(castleGroup);
 
-        const matGrayFloor = new THREE.MeshPhongMaterial({ color: colorTanFloor });
-        const matGrayDeck = new THREE.MeshPhongMaterial({ color: colorGrave, side: THREE.DoubleSide });
-        const matGrayPillar = new THREE.MeshPhongMaterial({ color: colorDarkGray });
-        const matBench = new THREE.MeshPhongMaterial({ color: colorWood });
-        const matGrass = new THREE.MeshPhongMaterial({ color: colorGrass });
-        const matMoss = new THREE.MeshPhongMaterial({ color: colorMoss });
-        const matNeonBlue = new THREE.MeshPhongMaterial({ color: colorNeonBlue, emissive: 0x006666, side: THREE.DoubleSide });
-        const matNeonPurp = new THREE.MeshPhongMaterial({ color: colorNeonPurp, emissive: 0x660066 });
-        const matWater = new THREE.MeshPhongMaterial({ color: colorWater, side: THREE.DoubleSide });
+        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x808080 });
+        const roofMat = new THREE.MeshStandardMaterial({ color: 0x8b0000 });
+        const grassMat = new THREE.MeshStandardMaterial({ color: 0x348C31 });
 
-        // -- 2a. The Main Octagonal Viewing Ring (Deck/Railings) --
-        const shape = new THREE.Shape();
-        const outerRad = 25;
-        const innerRad = 19;
-        
-        // Define octagonal shape and hole (Must match exactly)
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2;
-            const x = Math.cos(angle);
-            const y = Math.sin(angle);
-            if (i === 0) shape.moveTo(x * outerRad, y * outerRad);
-            else shape.lineTo(x * outerRad, y * outerRad);
+        // Ground
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), grassMat);
+        ground.rotation.x = -Math.PI / 2;
+        castleGroup.add(ground);
+
+        function createTower(x, z) {
+            const tower = new THREE.Group();
+            
+            // Base cylinder
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 8, 16), stoneMat);
+            body.position.y = 4;
+            tower.add(body);
+
+            // Conical Roof
+            const roof = new THREE.Mesh(new THREE.ConeGeometry(1.8, 3, 16), roofMat);
+            roof.position.y = 9.5;
+            tower.add(roof);
+
+            tower.position.set(x, 0, z);
+            castleGroup.add(tower);
         }
-        shape.closePath();
 
-        const hole = new THREE.Path();
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2;
-            const x = Math.cos(angle);
-            const y = Math.sin(angle);
-            if (i === 0) hole.moveTo(x * innerRad, y * innerRad);
-            else hole.lineTo(x * innerRad, y * innerRad);
+        function createWall(x, z, rotY, length) {
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(length, 5, 0.8), stoneMat);
+            wall.position.set(x, 2.5, z);
+            wall.rotation.y = rotY;
+            castleGroup.add(wall);
+            
+            // Battlements (simplistic)
+            for(let i = -length/2 + 0.5; i < length/2; i += 1) {
+                const meriton = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.8), stoneMat);
+                meriton.position.set(x + (Math.cos(rotY) * i), 5.3, z - (Math.sin(rotY) * i));
+                meriton.rotation.y = rotY;
+                castleGroup.add(meriton);
+            }
         }
-        hole.closePath();
-        shape.holes.push(hole);
 
-        // Extrude with specific depth and beveling for a hand-drawn look
-        const extrudeDeck = new THREE.ExtrudeGeometry(shape, { depth: 5, bevelEnabled: true, bevelThickness: 0.8, bevelSize: 0.8, bevelSegments: 3 });
-        const mainPlatform = new THREE.Mesh(extrudeDeck, matGrayDeck);
-        mainPlatform.rotation.x = Math.PI / 2;
-        mainPlatform.position.y = 2.5; // Raised slightly
-        mainPlatform.name = "Viewing_Deck_Main_Platform";
-        lobbyGroup.add(mainPlatform);
+        // Build the 4 corners
+        createTower(-5, -5);
+        createTower(5, -5);
+        createTower(5, 5);
+        createTower(-5, 5);
 
-        // -- 2b. Add All 4 Connected Detailed Activity Platforms --
-        const platGeo = new THREE.CylinderGeometry(9, 10, 2, 8); // Octagonal base matching reference
-        
-        // Define islands: [position, name, material]
-        const positions = [
-            { pos: [38, 0, 0], name: "Spawnpoint_Island", mat: matGrass },
-            { pos: [-38, 0, 0], name: "Daily_Obby_Island", mat: matGrass },
-            { pos: [0, 0, 38], name: "Practice_Obby_Island", mat: matGrave }, // Top/Upper area
-            { pos: [0, 0, -38], name: "Cave_Entrance_Island", mat: matGrave } // Lower/Daily obby area
-        ];
+        // Build the walls
+        createWall(0, -5, 0, 10); // North
+        createWall(0, 5, 0, 10);  // South
+        createWall(-5, 0, Math.PI / 2, 10); // West
+        createWall(5, 0, Math.PI / 2, 10);  // East
 
-        // Custom sculpted "Rockcliff" Connectors/Bridges
-        const bridgeGeo = new THREE.ExtrudeGeometry(new THREE.Shape([
-            new THREE.Vector2(-8, -3), new THREE.Vector2(8, -3),
-            new THREE.Vector2(5, 4), new THREE.Vector2(-5, 4)
-        ]), { depth: 4, bevelEnabled: true, bevelThickness: 0.8 });
+        // Keep (Main Building)
+        const keep = new THREE.Mesh(new THREE.BoxGeometry(4, 7, 4), stoneMat);
+        keep.position.y = 3.5;
+        castleGroup.add(keep);
 
-        positions.forEach(p => {
-            // Build the island itself
-            const plat = new THREE.Mesh(platGeo, p.mat);
-            plat.position.set(...p.pos);
-            plat.name = p.name;
-            lobbyGroup.add(plat);
-
-            // Detailed multi-part bridge matching the reference
-            const bridge = new THREE.Mesh(bridgeGeo, matGrayDeck);
-            bridge.position.set(p.pos[0] / 1.6, -2, p.pos[2] / 1.6);
-            bridge.lookAt(0, -2, 0); // Point bridge toward center
-            lobbyGroup.add(bridge);
-        });
-
-        // -- 2c. DETAILED PIT & MAIN OBBY COMPLEX --
-        const pitGrp = new THREE.Group();
-        
-        // Detailed Central Obby Crystal Core (Looks like the reference)
-        const coreGeo = new THREE.IcosahedronGeometry(8, 0);
-        const coreMat = matNeonBlue.clone(); coreMat.emissiveIntensity = 1.0;
-        const mainObbyCore = new THREE.Mesh(coreGeo, coreMat);
-        mainObbyCore.name = "Main_Obby_Central_Core_Cube";
-        pitGrp.add(mainObbyCore);
-
-        // Multiple Faceted Floating Crystal Groups
-        // [relative position, size, material, shape]
-        const obbyAssets = [
-            { pos: [-10, 8, -6], scale: 3, mat: matNeonPurp, shape: new THREE.PolyhedronGeometry([0,1,0, -1,0,0, 1,0,0, 0,0,1, 0,0,-1], [0,1,3, 0,2,3, 0,2,4, 0,1,4, 1,3,2, 1,4,2]) }, // Pyramid-like purple
-            { pos: [10, -6, 8], scale: 3.5, mat: matNeonBlue, shape: new THREE.TetrahedronGeometry(1) }, // Blue floating crystal
-            { pos: [-8, -10, 8], scale: 3, mat: matNeonPurp, shape: new THREE.BoxGeometry(2,2,2) }, // Purple cube
-            { pos: [10, 8, -6], scale: 3, mat: matNeonBlue, shape: new THREE.OctahedronGeometry(1.5, 0) }, // Faceted blue crystal
-            { pos: [12, -8, -12], scale: 2.5, mat: matNeonPurp, shape: new THREE.BoxGeometry(1.5, 3, 1.5) }, // Purple tower block
-        ];
-
-        obbyAssets.forEach(a => {
-            const mesh = new THREE.Mesh(a.shape, a.mat);
-            mesh.scale.set(a.scale, a.scale, a.scale);
-            mesh.position.set(...a.pos);
-            mesh.name = `Obby_Asset_${a.mat.color.getHexString()}`;
-            pitGrp.add(mesh);
-        });
-
-        // Add the detailed glowing patterned floor at the bottom of the pit
-        const pitFloorGeo = new THREE.ExtrudeGeometry(new THREE.Shape([
-            new THREE.Vector2(-12, -12), new THREE.Vector2(12, -12),
-            new THREE.Vector2(12, 12), new THREE.Vector2(-12, 12)
-        ]), { depth: 1, bevelEnabled: true, bevelThickness: 0.5 });
-        const pitFloor = new THREE.Mesh(pitFloorGeo, matNeonBlue);
-        pitFloor.position.y = -22;
-        pitGrp.add(pitFloor);
-
-        // Lower the entire obby into the pit
-        pitGrp.position.y = -10;
-        lobbyGroup.add(pitGrp);
-
-        scene.add(lobbyGroup);
-
-        // --- 3. EXPORT LOGIC ---
-        function exportGLTF() {
+        // --- Export Logic ---
+        document.getElementById('export-btn').addEventListener('click', () => {
             const exporter = new GLTFExporter();
-            // Important: Use binary for Roblox compatibility
-            const options = { binary: true }; 
+            exporter.parse(castleGroup, (gltf) => {
+                const output = JSON.stringify(gltf, null, 2);
+                save(new Blob([output], { type: 'text/plain' }), 'castle.gltf');
+            }, { binary: false });
+        });
 
-            exporter.parse(lobbyGroup, (result) => {
-                const blob = new Blob([result], { type: 'application/octet-stream' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = 'Detailed_Fantasy_Lobby_V3.glb';
-                link.click();
-            }, (error) => {
-                console.error('An error happened during export:', error);
-            }, options);
+        function save(blob, filename) {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
         }
 
-        document.getElementById('export-btn').addEventListener('click', exportGLTF);
-
-        // Animation Loop (Slowly rotate obby for show)
+        // --- Animation Loop ---
         function animate() {
             requestAnimationFrame(animate);
-            pitGrp.rotation.y += 0.005;
+            controls.update();
             renderer.render(scene, camera);
         }
         animate();
